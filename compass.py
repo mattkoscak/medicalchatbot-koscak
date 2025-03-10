@@ -134,42 +134,29 @@ When responding about procedures, monitoring, or treatments, strictly limit your
 # Initialize Session State Variables
 # ---------------------------
 if 'chatbot' not in st.session_state:
-    # Display input fields for API keys in the Streamlit interface
-    st.sidebar.title("API Configuration")
-    
-    # Try to get credentials from Streamlit secrets first
+    # Try to get credentials from different sources in order of preference
     try:
+        # First try Streamlit secrets
         compass_url = st.secrets["COMPASS_URL"]
         compass_token = st.secrets["COMPASS_TOKEN"]
         cohere_api_key = st.secrets["COHERE_API_KEY"]
         index_name = st.secrets.get("COMPASS_INDEX_NAME", "childrens_hospital_index")
         
-        st.sidebar.success("API configuration loaded from secrets!")
+        # Initialize the chatbot with secrets
+        st.session_state.chatbot = MedicalChatbot(
+            compass_url=compass_url,
+            compass_token=compass_token,
+            cohere_api_key=cohere_api_key,
+            index_name=index_name
+        )
     except (KeyError, FileNotFoundError):
-        # Fall back to environment variables or default values
-        st.sidebar.info("No secrets.toml file found. Using environment variables or manual input.")
+        # Fall back to environment variables
         compass_url = os.environ.get("COMPASS_URL", "http://compass-api-stg-compass:8080")
         compass_token = os.environ.get("COMPASS_TOKEN", "")
         cohere_api_key = os.environ.get("COHERE_API_KEY", "")
         index_name = os.environ.get("COMPASS_INDEX_NAME", "childrens_hospital_index")
-    
-    # Allow manual input of API keys if they aren't in environment variables
-    if not compass_token:
-        compass_token = st.sidebar.text_input("Compass API Token", type="password")
-    if not cohere_api_key:
-        cohere_api_key = st.sidebar.text_input("Cohere API Key", type="password")
-    
-    # Initialize button to set up the chatbot after entering API keys
-    initialize_chatbot = st.sidebar.button("Initialize Chatbot")
-    
-    # Verify that required credentials are available
-    if initialize_chatbot or (compass_token and cohere_api_key):
-        if not compass_token:
-            st.sidebar.error("Compass Token is required.")
-        if not cohere_api_key:
-            st.sidebar.error("Cohere API Key is required.")
         
-        # Initialize chatbot if credentials are available
+        # If environment variables are available, initialize the chatbot
         if compass_token and cohere_api_key:
             try:
                 st.session_state.chatbot = MedicalChatbot(
@@ -178,11 +165,10 @@ if 'chatbot' not in st.session_state:
                     cohere_api_key=cohere_api_key,
                     index_name=index_name
                 )
-                st.sidebar.success("Chatbot initialized successfully!")
             except Exception as e:
-                st.sidebar.error(f"Error initializing chatbot: {e}")
-        else:
-            st.sidebar.warning("Please provide both API keys to initialize the chatbot.")
+                st.error(f"Error initializing chatbot: {e}")
+    except Exception as e:
+        st.error(f"Error initializing chatbot: {e}")
 
 if 'messages' not in st.session_state:
     st.session_state.messages = []
@@ -196,12 +182,11 @@ st.title("Medical Chatbot")
 # Sidebar
 # ---------------------------
 with st.sidebar:
-    if 'chatbot' in st.session_state:
-        st.title("Medical Assistant")
-        st.write("Ask me anything about medical conditions, treatments, and health information!")
-        if st.button("Clear Chat"):
-            st.session_state.messages = []
-            st.experimental_rerun()
+    st.title("Medical Assistant")
+    st.write("Ask me anything about medical conditions, treatments, and health information!")
+    if st.button("Clear Chat"):
+        st.session_state.messages = []
+        st.experimental_rerun()
 
 # ---------------------------
 # Display Conversation History
@@ -218,14 +203,14 @@ for message in st.session_state.messages:
 # ---------------------------
 # Chat Input
 # ---------------------------
-if 'chatbot' in st.session_state:
-    if prompt := st.chat_input("Ask a medical question..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        
+if prompt := st.chat_input("Ask a medical question..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    if 'chatbot' in st.session_state:
         history = [{"role": m["role"], "content": m["content"]} 
-                   for m in st.session_state.messages if m["role"] in ["user", "assistant"]]
+                for m in st.session_state.messages if m["role"] in ["user", "assistant"]]
         
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
@@ -245,6 +230,8 @@ if 'chatbot' in st.session_state:
                     })
                 except Exception as e:
                     st.error(f"Error processing your request: {e}")
-                    st.info("This may be due to an API authentication issue. Please check your API keys in the sidebar.")
-else:
-    st.info("Please enter your API keys in the sidebar to initialize the chatbot.")
+                    st.info("This may be due to an API authentication issue. Please check your Streamlit secrets configuration.")
+    else:
+        with st.chat_message("assistant"):
+            st.error("The chatbot failed to initialize. Please check your Streamlit secrets configuration.")
+            st.info("Make sure you've set up COMPASS_TOKEN, COHERE_API_KEY, and COMPASS_URL in your secrets.toml file or environment variables.")

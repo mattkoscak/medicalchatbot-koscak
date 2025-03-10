@@ -75,7 +75,7 @@ When responding about procedures, monitoring, or treatments, strictly limit your
         response = self.co.chat(
             message=combined_query,
             documents=documents,
-            model="command-r-plus-08-2024",
+            model="command-r-08-2024",
             preamble=preamble,
             temperature=0.3
         )
@@ -137,11 +137,21 @@ if 'chatbot' not in st.session_state:
     # Display input fields for API keys in the Streamlit interface
     st.sidebar.title("API Configuration")
     
-    # Get credentials from environment variables with fallbacks for manual input
-    compass_url = os.environ.get("COMPASS_URL", "http://compass-api-stg-compass:8080")
-    compass_token = os.environ.get("COMPASS_TOKEN", "")
-    cohere_api_key = os.environ.get("COHERE_API_KEY", "")
-    index_name = os.environ.get("COMPASS_INDEX_NAME", "childrens_hospital_index")
+    # Try to get credentials from Streamlit secrets first
+    try:
+        compass_url = st.secrets["COMPASS_URL"]
+        compass_token = st.secrets["COMPASS_TOKEN"]
+        cohere_api_key = st.secrets["COHERE_API_KEY"]
+        index_name = st.secrets.get("COMPASS_INDEX_NAME", "childrens_hospital_index")
+        
+        st.sidebar.success("API configuration loaded from secrets!")
+    except (KeyError, FileNotFoundError):
+        # Fall back to environment variables or default values
+        st.sidebar.info("No secrets.toml file found. Using environment variables or manual input.")
+        compass_url = os.environ.get("COMPASS_URL", "http://compass-api-stg-compass:8080")
+        compass_token = os.environ.get("COMPASS_TOKEN", "")
+        cohere_api_key = os.environ.get("COHERE_API_KEY", "")
+        index_name = os.environ.get("COMPASS_INDEX_NAME", "childrens_hospital_index")
     
     # Allow manual input of API keys if they aren't in environment variables
     if not compass_token:

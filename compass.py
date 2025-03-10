@@ -176,13 +176,12 @@ if 'messages' not in st.session_state:
 # ---------------------------
 # Streamlit App UI
 # ---------------------------
-st.title("Medical Chatbot")
+st.title("Medical Knowledge Agent - Powered by Cohere Compass")
 
 # ---------------------------
 # Sidebar
 # ---------------------------
 with st.sidebar:
-    st.title("Medical Assistant")
     st.write("Ask me anything about medical conditions, treatments, and health information!")
     if st.button("Clear Chat"):
         st.session_state.messages = []
